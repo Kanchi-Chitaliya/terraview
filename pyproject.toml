@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "terraview"
+version = "0.1.0"
+description = "LLM-powered Terraform security reviewer with graph-based attack chain analysis"
+authors = ["Kanchi Chitaliya <kanchichitaliya@gmail.com>"]
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "https://github.com/kanchichitaliya/terraview"
+repository = "https://github.com/kanchichitaliya/terraview"
+keywords = ["terraform", "security", "iac", "llm", "devsecops", "cloud-security"]
+classifiers = [
+    "Topic :: Security",
+    "Topic :: Software Development :: Build Tools",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14.1 || >3.14.1,<4.0"
+python-hcl2 = "^8.1.2"
+networkx = ">=3.6.1"
+click = "^8.3.2"
+rich = "^14.3.3"
+python-dotenv = "^1.2.2"
+anthropic = {version = "^0.94.0", optional = true}
+openai = {version = "^2.31.0", optional = true}
+
+[tool.poetry.extras]
+anthropic = ["anthropic"]
+openai = ["openai"]
+all = ["anthropic", "openai"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.3"
+pytest-cov = "^7.1.0"
+ruff = "^0.15.10"
+
+[tool.poetry.scripts]
+terraview = "terraview.cli:cli"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry-core.masonry.api"
