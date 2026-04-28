@@ -1,6 +1,6 @@
 # Roadmap
 
-Current state: single-account AWS Terraform, local module references, flat directory structure.
+Current state: single-account AWS Terraform, local module references, flat directory structure. Supports both HCL source and `terraform show -json` plan files as input.
 
 ## Near term
 
@@ -9,9 +9,6 @@ Follow local module calls across directory boundaries and build a unified graph.
 
 **Checkov severity mapping**
 Replace LLM enrichment for known check IDs with a maintained static map. LLM enrichment is a good fallback but adds latency and cost for checks we could classify deterministically.
-
-**SARIF output**
-GitHub and GitLab natively render SARIF as inline PR annotations. This makes terraview findings appear directly on the lines of code that caused them.
 
 **Pre-commit hook**
 A `.pre-commit-config.yaml` entry so engineers get feedback before they even open a PR.
@@ -23,9 +20,6 @@ Parse `terragrunt.hcl` files and resolve the account/environment structure they 
 
 **Remote state following**
 Follow `terraform_remote_state` data source references across account boundaries. This is where the most interesting cross-account attack chains live.
-
-**Finding deduplication**
-When Checkov and the LLM both flag the same issue, merge them into one finding rather than reporting duplicates.
 
 **Result caching**
 Cache LLM responses keyed on a hash of the resource graph. Same Terraform, same findings, no redundant API calls.
@@ -43,3 +37,11 @@ GitHub App and GitLab integration that posts findings as PR comments with sugges
 
 **Benchmark dataset**
 A curated set of vulnerable Terraform configurations with known findings, for evaluating scanner coverage and LLM reasoning quality across releases.
+
+## Done
+
+- Terraform plan JSON support (`terraform show -json`) — fully resolved values, explicit dependency references, change action awareness
+- SARIF 2.1.0 output for GitHub PR inline annotations
+- Finding deduplication across Checkov, static, graph, and LLM sources
+- Prompt caching on Anthropic provider
+- Built-in static checks wired into CLI alongside Checkov ingestion
