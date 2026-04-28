@@ -1,6 +1,6 @@
 # terraview
 
-[![CI](https://github.com/kanchichitaliya/terraview/actions/workflows/ci.yml/badge.svg)](https://github.com/kanchichitaliya/terraview/actions/workflows/ci.yml)
+[![CI](https://github.com/Kanchi-Chitaliya/terraview/actions/workflows/ci.yml/badge.svg)](https://github.com/Kanchi-Chitaliya/terraview/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://pypi.org/project/terraview)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
@@ -51,7 +51,7 @@ Every finding includes a MITRE ATT&CK technique, blast radius, and a Terraform r
 ## Quickstart
 
 ```bash
-git clone https://github.com/kanchichitaliya/terraview
+git clone https://github.com/Kanchi-Chitaliya/terraview
 cd terraview
 poetry install --extras anthropic
 export ANTHROPIC_API_KEY=sk-ant-...
