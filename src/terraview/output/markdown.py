@@ -55,7 +55,7 @@ def generate_report(
         for f in critical:
             lines += _format_finding(f)
 
-    high = [f for f in findings if f.severity == Severity.HIGH]
+    high = [f for f in findings if f.severity == Severity.HIGH and f.source != "graph"]
     if high:
         lines += ["## High findings", ""]
         for f in high:

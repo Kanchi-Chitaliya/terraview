@@ -3,7 +3,7 @@ from terraview import config
 
 
 def get_provider(provider: str = None, model: str = None) -> LLMProvider:
-    provider = provider or config.SENTINEL_PROVIDER
+    provider = provider or config.TERRAVIEW_PROVIDER
 
     if provider == "anthropic":
         from terraview.providers.anthropic import AnthropicProvider
@@ -23,5 +23,5 @@ def get_provider(provider: str = None, model: str = None) -> LLMProvider:
     else:
         raise ValueError(
             f"Unknown provider '{provider}'. "
-            f"Choose from: anthropic, openai, ollama"
+            f"Choose from: {', '.join(config.SUPPORTED_PROVIDERS)}"
         )
