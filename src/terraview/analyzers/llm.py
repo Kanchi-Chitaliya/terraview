@@ -51,6 +51,17 @@ def run_llm_checks(
           f"{len(existing_findings)} existing findings")
     print(f"  This may take 15-30 seconds...")
 
+    changed = [
+        nid for nid, a in graph.nodes(data=True)
+        if a.get("change_action", "no-op") not in ("no-op", "")
+    ]
+    change_note = (
+        f"\n\nNote: {len(changed)} resource(s) are actively changing in this plan "
+        f"(marked [CREATE], [UPDATE], [DELETE], or [REPLACE]). "
+        f"Prioritise risks introduced by these changes."
+        if changed else ""
+    )
+
     user_prompt = f"""## Resource graph
 
 {graph_summary}
@@ -60,7 +71,7 @@ def run_llm_checks(
 {findings_summary}
 
 Identify additional security risks not already covered above.
-Focus on architectural gaps, missing controls, and subtle risks."""
+Focus on architectural gaps, missing controls, and subtle risks.{change_note}"""
 
     try:
         response = provider.complete(SYSTEM_PROMPT, user_prompt)
@@ -75,7 +86,9 @@ Focus on architectural gaps, missing controls, and subtle risks."""
 def _build_graph_summary(graph: nx.DiGraph) -> str:
     lines = ["Resources:"]
     for node_id, attrs in graph.nodes(data=True):
-        lines.append(f"  - {node_id} ({attrs['file_path']})")
+        change = attrs.get("change_action", "")
+        tag = f" [{change.upper()}]" if change and change != "no-op" else ""
+        lines.append(f"  - {node_id}{tag} ({attrs['file_path']})")
 
     lines.append("\nRelationships:")
     for src, dst in graph.edges():
@@ -83,7 +96,7 @@ def _build_graph_summary(graph: nx.DiGraph) -> str:
 
     lines.append("\nResource configs:")
     for node_id, attrs in graph.nodes(data=True):
-        config = attrs["config"]
+        config = attrs.get("config", {})
         if isinstance(config, list):
             config = config[0] if config else {}
         config_str = json.dumps(config, default=str)[:500]
@@ -109,13 +122,18 @@ def _clean_resource_name(resource_type: str, resource_name: str) -> str:
     return resource_name
 
 
+def _sanitize_response(response: str) -> str:
+    response = response.strip()
+    if response.startswith("```"):
+        response = response.split("\n", 1)[1]
+        response = response.rsplit("```", 1)[0]
+    return response.strip()
+
+
 def _parse_response(response: str, graph: nx.DiGraph) -> list[Finding]:
     findings = []
     try:
-        response = response.strip()
-        if response.startswith("```"):
-            response = response.split("\n", 1)[1]
-            response = response.rsplit("```", 1)[0]
+        response = _sanitize_response(response)
         items = json.loads(response)
         for item in items:
             severity = Severity[item.get("severity", "MEDIUM")]
@@ -142,7 +160,10 @@ def _parse_response(response: str, graph: nx.DiGraph) -> list[Finding]:
                 blast_radius=item.get("blast_radius", []),
                 source="llm",
             ))
+    except json.JSONDecodeError as e:
+        print(f"  Failed to parse LLM JSON response: {e}")
+        print(f"  Raw response: {response[:500]}")
     except Exception as e:
-        print(f"  Failed to parse LLM response: {e}")
+        print(f"  Unexpected error parsing LLM response: {e}")
         print(f"  Raw response: {response[:500]}")
     return findings
