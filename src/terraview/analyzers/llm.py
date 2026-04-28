@@ -49,7 +49,7 @@ def run_llm_checks(
     print(f"  Sending to {provider.name()} for architectural analysis...")
     print(f"  Context: {graph.number_of_nodes()} resources, "
           f"{len(existing_findings)} existing findings")
-    print(f"  This may take 15-30 seconds...")
+    print("  This may take 15-30 seconds...")
 
     changed = [
         nid for nid, a in graph.nodes(data=True)
