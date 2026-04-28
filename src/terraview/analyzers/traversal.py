@@ -21,31 +21,28 @@ def _check_public_ec2_to_admin_role(graph: nx.DiGraph) -> list[Finding]:
         if attrs["resource_type"] != "aws_instance":
             continue
 
-        config = attrs["config"]
-        if isinstance(config, list):
-            config = config[0]
-
-        is_public = str(config.get("associate_public_ip_address", "false")).lower() == "true"
-        if not is_public:
+        if not _is_public_instance(attrs):
             continue
 
-        # Walk: ec2 → instance_profile → iam_role → iam_role_policy
         profile_nodes = _get_neighbors_of_type(graph, node_id, "aws_iam_instance_profile")
         sg_nodes = _get_neighbors_of_type(graph, node_id, "aws_security_group")
 
         for profile in profile_nodes:
             role_nodes = _get_neighbors_of_type(graph, profile, "aws_iam_role")
             for role in role_nodes:
-                policy_nodes = _get_predecessors_of_type(graph, role, "aws_iam_role_policy")
+                policy_nodes = _get_role_policy_nodes(graph, role)
                 for policy in policy_nodes:
                     policy_config = str(graph.nodes[policy]["config"])
-                    if '"*"' not in policy_config and "'*'" not in policy_config:
+                    if not _has_wildcard_policy(policy_config):
                         continue
 
                     open_sgs = [
                         sg for sg in sg_nodes
                         if _sg_has_open_ssh(graph.nodes[sg]["config"])
                     ]
+
+                    if not open_sgs:
+                        continue
 
                     blast_radius = [node_id, profile, role, policy] + open_sgs
 
@@ -87,8 +84,8 @@ def _check_public_ec2_to_sensitive_bucket(graph: nx.DiGraph) -> list[Finding]:
 
     public_buckets = [
         n for n, a in graph.nodes(data=True)
-        if a["resource_type"] == "aws_s3_bucket_acl"
-        and "public-read" in str(a["config"])
+        if (a["resource_type"] == "aws_s3_bucket_acl" and "public-read" in str(a["config"]).lower())
+        or (a["resource_type"] == "aws_s3_bucket" and "public-read" in str(a["config"]).lower())
     ]
 
     if not public_buckets:
@@ -110,7 +107,7 @@ def _check_public_ec2_to_sensitive_bucket(graph: nx.DiGraph) -> list[Finding]:
         for profile in profile_nodes:
             role_nodes = _get_neighbors_of_type(graph, profile, "aws_iam_role")
             for role in role_nodes:
-                policy_nodes = _get_predecessors_of_type(graph, role, "aws_iam_role_policy")
+                policy_nodes = _get_role_policy_nodes(graph, role)
                 for policy in policy_nodes:
                     policy_config = str(graph.nodes[policy]["config"])
                     if '"*"' not in policy_config:
@@ -159,13 +156,39 @@ def _get_predecessors_of_type(graph: nx.DiGraph, node: str, resource_type: str) 
     ]
 
 
+def _get_role_policy_nodes(graph: nx.DiGraph, role: str) -> list[str]:
+    nodes = _get_predecessors_of_type(graph, role, "aws_iam_role_policy")
+    nodes.extend(_get_predecessors_of_type(graph, role, "aws_iam_policy_attachment"))
+    return nodes
+
+
+def _is_public_instance(attrs: dict) -> bool:
+    config = attrs.get("config", {})
+    if isinstance(config, list):
+        config = config[0] if config else {}
+    return str(config.get("associate_public_ip_address", "false")).lower() == "true"
+
+
+def _has_wildcard_policy(policy_config: object) -> bool:
+    policy_text = str(policy_config).lower()
+    return "'*'" in policy_text or '"*"' in policy_text or "action=\"*\"" in policy_text
+
+
 def _sg_has_open_ssh(config) -> bool:
     if isinstance(config, list):
         config = config[0] if config else {}
-    for ingress in config.get("ingress", []):
+    ingresses = config.get("ingress", [])
+    if not isinstance(ingresses, list):
+        ingresses = [ingresses]
+    for ingress in ingresses:
         if isinstance(ingress, list):
             ingress = ingress[0] if ingress else {}
-        if (ingress.get("from_port") == 22 and
-                "0.0.0.0/0" in str(ingress.get("cidr_blocks", []))):
+        if not isinstance(ingress, dict):
+            continue
+        from_port = ingress.get("from_port")
+        cidrs = ingress.get("cidr_blocks") or ingress.get("cidr_ipv6_blocks") or []
+        if isinstance(cidrs, str):
+            cidrs = [cidrs]
+        if from_port == 22 and any("0.0.0.0/0" in str(c) or "::/0" in str(c) for c in cidrs):
             return True
     return False
